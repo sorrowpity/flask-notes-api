@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}笔记列表 - 我的学习笔记{% endblock %}
+
+<!-- 重写侧边栏（覆盖默认内容） -->
+{% block sidebar %}
+<h4>我的笔记统计</h4>
+<p>总笔记数：{{ notes|length }}</p>  <!-- notes|length 是模板过滤器，统计列表长度 -->
+<p>当前用户: {{ username }}</p>
+{% endblock %}
+
+{% block content %}
+<h2>我的学习笔记</h2>
+{% if notes %}
+    {% for note in notes %}
+    <div class="note-item">
+
+        <h3>{{ note.title }}</h3>
+        <p>{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p>
+        <div class="meta">
+            {% set note_dict = note.to_dict() %}
+            创建时间：{{ note_dict.create_time }} | 
+            更新时间：{{ note_dict.update_time }}
+        </div>
+        <div>
+            <a href="/edit/{{ note.id }}"><button class="btn btn-primary">编辑</button></a>
+            <!-- <a href="/delete/{{ note.id }}" onclick="return confirm('确定删除这条笔记吗？')"><button class="btn btn-danger">删除</button></a> -->
+             <form action="/delete/{{ note.id }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('确定删除吗？')">删除</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <p>暂无笔记，<a href="/add">点击新增</a>你的第一条笔记吧！</p>
+{% endif %}
+{% endblock %}
