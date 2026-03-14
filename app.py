@@ -6,7 +6,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # 配置数据库（SQLite，无需额外安装）
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///notes.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://noteuser:123456@192.168.159.128:3306/note_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭不必要的警告
 app.config['JSON_AS_ASCII'] = False  # 解决中文JSON乱码
 
@@ -213,4 +213,4 @@ def page_not_found(e):
 
 # ------------------- 运行程序 -------------------
 if __name__ == '__main__':
-    app.run(debug=True)  # debug模式，开发时用
+    app.run(host='0.0.0.0', port=5000, debug=True)
