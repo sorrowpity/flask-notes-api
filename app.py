@@ -1,3 +1,4 @@
+# app.py - Flask笔记管理系统核心代码
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from models import db, Note, User
 from datetime import datetime

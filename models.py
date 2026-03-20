@@ -1,3 +1,4 @@
+# models.py - 定义数据库模型
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
