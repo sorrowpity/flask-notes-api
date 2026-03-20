@@ -1,23 +1,57 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from models import db, Note
+from models import db, Note, User
 from datetime import datetime
+from datetime import timedelta
+
+# ===================== JWT 登录相关导入 =====================
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from passlib.context import CryptContext
 
 # 初始化Flask应用
 app = Flask(__name__)
+import os
 
-# 配置数据库（SQLite，无需额外安装）
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://noteuser:123456@192.168.159.128:3306/note_db'
+# ===================== 自动三环境适配 =====================
+# 本地Windows开发  → SQLite（无需数据库）
+# 虚拟机Docker     → 192.168.159.128
+# 云服务器Docker   → host.docker.internal
+# ==========================================================
+if os.path.exists('/.dockerenv'):
+    # 在 Docker 容器内部
+    with open('/etc/hostname', 'r') as f:
+        container_id = f.read().strip()
+
+    # 判断是云服务器 还是 本地虚拟机
+    if 'aliyun' in container_id or 'iZ' in os.uname().nodename:
+        # 云服务器 Docker
+        DB_URI = "mysql+pymysql://noteuser:123456@host.docker.internal:3306/note_db"
+    else:
+        # 本地虚拟机 Docker
+        DB_URI = "mysql+pymysql://noteuser:123456@192.168.159.128:3306/note_db"
+else:
+    # 本地 Windows VS Code 开发（无数据库依赖）
+    DB_URI = "sqlite:///notes.db"
+
+# 应用配置
+app.config['SQLALCHEMY_DATABASE_URI'] = DB_URI
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # 关闭不必要的警告
 app.config['JSON_AS_ASCII'] = False  # 解决中文JSON乱码
 
-# 初始化数据库
+# ===================== JWT 配置 =====================
+app.config['JWT_SECRET_KEY'] = 'my-super-secret-key-2026'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
+
+# 初始化插件
 db.init_app(app)
+jwt = JWTManager(app)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # 创建数据库表（首次运行时执行）
 with app.app_context():
     db.create_all()
-    
-    
+
+
 # -------------------------- 统一响应格式（核心） --------------------------
 def success_response(data=None, message="操作成功"):
     """成功响应"""
@@ -36,6 +70,40 @@ def error_response(code=400, message="操作失败", data=None):
         'data': data,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }), code
+
+# ===================== 1. 用户注册接口（新增） =====================
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+
+    if not username or not password:
+        return error_response(400, "用户名和密码不能为空")
+
+    if User.query.filter_by(username=username).first():
+        return error_response(400, "用户名已存在")
+
+    hash_pwd = pwd_context.hash(password)
+    user = User(username=username, password=hash_pwd)
+
+    db.session.add(user)
+    db.session.commit()
+    return success_response(message="注册成功")
+
+# ===================== 2. 用户登录接口（新增） =====================
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+
+    user = User.query.filter_by(username=username).first()
+    if not user or not pwd_context.verify(password, user.password):
+        return error_response(400, "用户名或密码错误")
+
+    token = create_access_token(identity=str(user.id))
+    return success_response(data={"token": token}, message="登录成功")
 
 # ------------------- 核心路由 -------------------
 # 1. 首页：笔记列表（GET请求）
@@ -90,10 +158,6 @@ def edit_note(note_id):
     # GET请求：显示编辑表单（传递笔记数据）
     return render_template('edit_note.html', note=note)
 
-
-
-
-
 # 4. 删除笔记（GET请求，简单实现）
 @app.route('/delete/<int:note_id>', methods=['POST'])
 def delete_note(note_id):
@@ -128,88 +192,67 @@ def search_note():
     # 渲染首页模板，传入筛选后的notes
     return render_template('index.html', notes=notes)
 
-
-# -------------------------- 新增：RESTful API接口 --------------------------
-# 接口1：获取所有笔记（GET请求）
+# -------------------------- RESTful API接口（已加登录验证） --------------------------
+# 接口1：获取所有笔记
 @app.route('/api/notes', methods=['GET'])
+@jwt_required()  # 必须登录
 def get_notes_api():
-    # 1. 查数据库（和你首页的查询逻辑一样）
     notes = Note.query.order_by(Note.update_time.desc()).all()
-    # 2. 转成字典列表（用刚才新增的to_dict_list方法）
     notes_data = Note.to_dict_list(notes)
-    # 3. 用统一成功响应返回
     return success_response(data=notes_data, message="获取笔记列表成功")
 
-# 接口2：新增笔记（POST请求，API版）
+# 接口2：新增笔记
 @app.route('/api/notes', methods=['POST'])
+@jwt_required()  # 必须登录
 def add_note_api():
-    # 1. 接收前端传的JSON数据（不是表单数据！）
-    # 你原来的/add是接收表单，API接收JSON，这是核心区别
-    data = request.get_json() or {}  # 如果没传数据，返回空字典
-    title = data.get('title', '').strip()
-    content = data.get('content', '').strip()
-    
-    # 2. 数据校验（和你原来的逻辑一样）
-    if not title or not content:
-        return error_response(code=400, message="标题和内容不能为空")
-    
-    # 3. 新增笔记（和你原来的逻辑一样）
-    new_note = Note(title=title, content=content)
-    db.session.add(new_note)
-    db.session.commit()
-    
-    # 4. 返回新增的笔记数据
-    return success_response(data=new_note.to_dict(), message="新增笔记成功"), 201  # 201表示创建成功
-
-# 接口3：删除笔记（DELETE请求，API版）
-@app.route('/api/notes/<int:note_id>', methods=['DELETE'])
-def delete_note_api(note_id):
-    # 1. 查笔记（和你原来的删除逻辑一样）
-    note = Note.query.get(note_id)
-    if not note:
-        return error_response(code=404, message="笔记不存在")
-    
-    # 2. 删除笔记
-    db.session.delete(note)
-    db.session.commit()
-    
-    # 3. 返回成功（无数据）
-    return success_response(data=None, message="删除笔记成功")
-
-# 接口4：修改笔记（PUT请求，API版）
-@app.route('/api/notes/<int:note_id>', methods=['PUT'])
-def update_note_api(note_id):
-    # 1. 先查要修改的笔记是否存在
-    note = Note.query.get(note_id)
-    if not note:
-        return error_response(code=404, message="笔记不存在")
-    
-    # 2. 接收JSON数据（和新增逻辑一致）
     data = request.get_json() or {}
     title = data.get('title', '').strip()
     content = data.get('content', '').strip()
     
-    # 3. 数据校验
     if not title or not content:
         return error_response(code=400, message="标题和内容不能为空")
     
-    # 4. 更新笔记
+    new_note = Note(title=title, content=content)
+    db.session.add(new_note)
+    db.session.commit()
+    
+    return success_response(data=new_note.to_dict(), message="新增笔记成功"), 201
+
+# 接口3：删除笔记
+@app.route('/api/notes/<int:note_id>', methods=['DELETE'])
+@jwt_required()  # 必须登录
+def delete_note_api(note_id):
+    note = Note.query.get(note_id)
+    if not note:
+        return error_response(code=404, message="笔记不存在")
+    
+    db.session.delete(note)
+    db.session.commit()
+    return success_response(data=None, message="删除笔记成功")
+
+# 接口4：修改笔记
+@app.route('/api/notes/<int:note_id>', methods=['PUT'])
+@jwt_required()  # 必须登录
+def update_note_api(note_id):
+    note = Note.query.get(note_id)
+    if not note:
+        return error_response(code=404, message="笔记不存在")
+    
+    data = request.get_json() or {}
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    
+    if not title or not content:
+        return error_response(code=400, message="标题和内容不能为空")
+    
     note.title = title
     note.content = content
     db.session.commit()
-    
-    # 5. 返回更新后的笔记数据
     return success_response(data=note.to_dict(), message="修改笔记成功")
-
-
-
 
 @app.errorhandler(404)  # 捕获404错误
 def page_not_found(e):
-    # 渲染404模板，返回404状态码
     return render_template('404.html'), 404
-
-
 
 # ------------------- 运行程序 -------------------
 if __name__ == '__main__':
