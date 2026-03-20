@@ -4,63 +4,177 @@
     <meta charset="UTF-8">
     <title>{% block title %}我的学习笔记{% endblock %}</title>
     <style>
-        /* 公共样式（所有页面复用） */
-        * {margin: 0; padding: 0; box-sizing: border-box;}
-        body {font-family: Arial, sans-serif; padding-bottom: 60px;}
-        header {background: #2c3e50; color: white; padding: 20px; text-align: center;}
-        nav {margin: 10px 0; text-align: center;}
-        nav a {margin: 0 15px; text-decoration: none; color: #2c3e50; font-weight: bold;}
-        nav a:hover {color: #3498db;}
-        .container {max-width: 800px; margin: 20px auto; padding: 0 20px;}
-        footer {background: #2c3e50; color: white; text-align: center; padding: 10px; position: fixed; bottom: 0; width: 100%;}
-        .btn {padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;}
-        .btn-primary {background: #3498db; color: white;}
-        .btn-danger {background: #e74c3c; color: white;}
-        .form-group {margin: 15px 0;}
-        .form-group label {display: block; margin-bottom: 5px;}
-        .form-group input, .form-group textarea {width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;}
-        .form-group textarea {height: 200px; resize: vertical;}
-        .note-item {border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px;}
-        .note-item h3 {color: #2c3e50; margin-bottom: 10px;}
-        .note-item .meta {color: #999; font-size: 12px; margin: 10px 0;}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            padding-bottom: 60px;
+            background-color: #f7f8fa;
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        /* 导航栏：间距更大、字体更大 */
+        nav {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+            font-size: 16px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #2c3e50;
+            font-weight: bold;
+            padding: 6px 0;
+        }
+
+        nav a:hover {
+            color: #3498db;
+        }
+
+        /* 搜索框 */
+        nav form {
+            display: flex;
+            gap: 6px;
+        }
+
+        nav input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        nav button {
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* 容器居中，删除侧边栏 */
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 12px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .form-group {
+            margin: 18px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .form-group textarea {
+            height: 220px;
+            resize: vertical;
+        }
+
+        .note-item {
+            border: 1px solid #eee;
+            padding: 20px;
+            margin: 14px 0;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .note-item h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .note-item .meta {
+            color: #999;
+            font-size: 12px;
+            margin: 10px 0;
+        }
     </style>
 </head>
+
 <body>
-    <!-- 公共导航栏 -->
     <header>
         <h1>Flask学习笔记管理系统</h1>
     </header>
+
     <nav>
-        <a href="/">笔记列表</a>
+        <a href="/">首页</a>
         <a href="/add">新增笔记</a>
         <a href="/about">关于</a>
-        <!-- 新增搜索表单 -->
-        <form action="/search" method="get" style="display: inline;">
-            <input type="text" name="keyword" placeholder="输入标题搜索" style="padding: 5px;">
-            <button type="submit" style="padding: 5px;">搜索</button>
+
+        {% if not session.user_id %}
+            <a href="/login">登录</a>
+            <a href="/register">注册</a>
+        {% else %}
+            <a href="/logout">退出登录</a>
+        {% endif %}
+
+        <form action="/search" method="get">
+            <input type="text" name="keyword" placeholder="搜索标题">
+            <button type="submit">搜索</button>
         </form>
     </nav>
-    
+
+    <!-- 已删除侧边栏，只剩主体内容 -->
     <div class="container">
-        <!-- 新增侧边栏块 -->
-        <div class="sidebar" style="float: left; width: 200px; margin-right: 20px;">
-            {% block sidebar %}
-            <!-- 默认侧边栏内容 -->
-            <h4>笔记分类</h4>
-            <ul>
-                <li>Flask</li>
-                <li>Python</li>
-                <li>算法</li>
-            </ul>
-            {% endblock %}
-        </div>
-        <!-- 主体内容块 -->
-        <div class="main" style="float: left; width: 500px;">
-            {% block content %}{% endblock %}
-        </div>
+        {% block content %}{% endblock %}
     </div>
-    
-    <!-- 公共页脚 -->
+
     <footer>
         © 2026 我的Flask学习项目 | 杭电计科学习笔记
     </footer>

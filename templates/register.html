@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}用户注册{% endblock %}
+
+{% block content %}
+
+<div style="display: flex; justify-content: center; align-items: center; min-height: 65vh; padding: 20px;">
+    <div style="width: 100%; max-width: 420px; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="font-weight: bold; margin-bottom: 8px;">📝 账号注册</h2>
+            <p style="color: #666;">创建你的笔记管理账号</p>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold;">用户名</label>
+            <input 
+                id="username" 
+                type="text" 
+                style="width: 100%; padding: 16px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px;"
+                placeholder="请设置用户名">
+        </div>
+
+        <div style="margin-bottom: 32px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold;">密码</label>
+            <input 
+                id="password" 
+                type="password"
+                style="width: 100%; padding: 16px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px;"
+                placeholder="请设置密码">
+        </div>
+
+        <button 
+            onclick="register()"
+            style="width: 100%; padding: 16px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+            注 册
+        </button>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <span style="color: #666;">已有账号？</span>
+            <a href="/login" style="color: #3498db; text-decoration: none;">立即登录</a>
+        </div>
+    </div>
+</div>
+
+<script>
+async function register() {
+    let username = document.getElementById('username').value
+    let password = document.getElementById('password').value
+    let res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    })
+    let json = await res.json()
+    alert(json.message)
+    if (json.code === 200) location.href = '/login'
+}
+</script>
+
+{% endblock %}
