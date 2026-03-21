@@ -35,10 +35,12 @@ def register_routes(app):
             title = request.form.get('title')
             content = request.form.get('content')
             if not title or not content:
+                logger.error(f"用户{user.id}（{user.username}）添加笔记失败：标题/内容为空")
                 return "标题和内容不能为空！<a href='/add'>返回</a>"
             note = Note(title=title, content=content, user_id=user.id)
             db.session.add(note)
             db.session.commit()
+            logger.info(f"用户{user.id}（{user.username}）通过网页添加笔记成功：笔记ID{note.id}，标题{title}")
             return redirect(url_for('index'))
         return render_template('add_note.html')
 
@@ -52,6 +54,7 @@ def register_routes(app):
             note.title = request.form.get('title')
             note.content = request.form.get('content')
             db.session.commit()
+            logger.info(f"用户{user.id}（{user.username}）通过网页编辑笔记成功：笔记ID{note.id}，标题{note.title}")
             return redirect(url_for('index'))
         return render_template('edit_note.html', note=note)
 
@@ -61,6 +64,8 @@ def register_routes(app):
         if check: return check
         user = get_current_user()
         note = Note.query.filter_by(id=note_id, user_id=user.id).first_or_404()
+        # ========== 新增日志 ==========
+        logger.info(f"用户{user.id}（{user.username}）通过网页删除笔记成功：笔记ID{note.id}，标题{note.title}")
         db.session.delete(note)
         db.session.commit()
         return redirect(url_for('index'))
