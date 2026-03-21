@@ -5,3 +5,5 @@ pymysql
 cryptography
 flask-jwt-extended
 passlib[bcrypt]
+pytest
+pytest-flask
