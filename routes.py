@@ -37,10 +37,17 @@ def register_routes(app):
             if not title or not content:
                 logger.error(f"用户{user.id}（{user.username}）添加笔记失败：标题/内容为空")
                 return "标题和内容不能为空！<a href='/add'>返回</a>"
-            note = Note(title=title, content=content, user_id=user.id)
-            db.session.add(note)
-            db.session.commit()
-            logger.info(f"用户{user.id}（{user.username}）通过网页添加笔记成功：笔记ID{note.id}，标题{title}")
+            
+            try:
+                note = Note(title=title, content=content, user_id=user.id)
+                db.session.add(note)
+                db.session.commit()
+                logger.info(f"用户{user.id}（{user.username}）通过网页添加笔记成功：笔记ID{note.id}，标题{title}")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"用户{user.id}添加笔记数据库错误：{str(e)}")
+                return "数据库错误，请重试！<a href='/add'>返回</a>"
+            
             return redirect(url_for('index'))
         return render_template('add_note.html')
 
@@ -53,8 +60,16 @@ def register_routes(app):
         if request.method == 'POST':
             note.title = request.form.get('title')
             note.content = request.form.get('content')
-            db.session.commit()
-            logger.info(f"用户{user.id}（{user.username}）通过网页编辑笔记成功：笔记ID{note.id}，标题{note.title}")
+            
+            
+            try:
+                db.session.commit()
+                logger.info(f"用户{user.id}（{user.username}）通过网页编辑笔记成功：笔记ID{note.id}，标题{note.title}")
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"用户{user.id}编辑笔记数据库错误：{str(e)}")
+                return "数据库错误，请重试！<a href='/edit/"+str(note_id)+"'>返回</a>"
+            
             return redirect(url_for('index'))
         return render_template('edit_note.html', note=note)
 
@@ -65,9 +80,16 @@ def register_routes(app):
         user = get_current_user()
         note = Note.query.filter_by(id=note_id, user_id=user.id).first_or_404()
         # ========== 新增日志 ==========
-        logger.info(f"用户{user.id}（{user.username}）通过网页删除笔记成功：笔记ID{note.id}，标题{note.title}")
-        db.session.delete(note)
-        db.session.commit()
+        try:
+            db.session.delete(note)
+            db.session.commit()
+            logger.info(f"用户{user.id}（{user.username}）通过网页删除笔记成功：笔记ID{note.id}，标题{note.title}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"用户{user.id}删除笔记数据库错误：{str(e)}")
+            return "数据库错误，请重试！<a href='/'>返回</a>"
+        
+        
         return redirect(url_for('index'))
 
     @app.route('/search')
@@ -109,10 +131,17 @@ def register_routes(app):
         if User.query.filter_by(username=username).first():
             logger.error(f"用户注册失败：用户名{username}已存在")  # 新增错误日志
             return error_response(400,"用户名已存在")
-        user = User(username=username, password=pwd_context.hash(password))
-        db.session.add(user)
-        db.session.commit()
-        logger.info(f"用户注册成功：用户名{username}")  # 新增信息日志
+        try:
+            user = User(username=username, password=pwd_context.hash(password))
+            db.session.add(user)
+            db.session.commit()
+            logger.info(f"用户注册成功：用户名{username}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"注册数据库错误：{str(e)}")
+            return error_response(500,"注册失败，数据库错误")
+        
+        
         return success_response(message="注册成功")
 
     @app.route("/api/login", methods=["POST"])
@@ -146,10 +175,17 @@ def register_routes(app):
         if not title or not content:
             logger.error(f"用户{user_id}添加笔记失败：标题/内容为空")  # 新增错误日志
             return error_response(400,"标题和内容不能为空")
-        note = Note(title=title, content=content, user_id=user_id)
-        db.session.add(note)
-        db.session.commit()
-        logger.info(f"用户{user_id}添加笔记成功：笔记ID{note.id}，标题{title}")  # 新增信息日志
+        
+        try:
+            note = Note(title=title, content=content, user_id=user_id)
+            db.session.add(note)
+            db.session.commit()
+            logger.info(f"用户{user_id}添加笔记成功：笔记ID{note.id}，标题{title}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"API添加笔记数据库错误：{str(e)}")
+            return error_response(500,"数据库错误")
+        
         return success_response(data=note.to_dict()), 201
 
     @app.route('/api/notes/<int:note_id>', methods=['DELETE'])
@@ -160,9 +196,16 @@ def register_routes(app):
         if not note:
             logger.error(f"用户{user_id}删除笔记失败：笔记ID{note_id}不存在")  # 新增错误日志
             return error_response(404,"笔记不存在")
-        db.session.delete(note)
-        db.session.commit()
-        logger.info(f"用户{user_id}删除笔记成功：笔记ID{note_id}")  # 新增信息日志
+        
+        try:
+            db.session.delete(note)
+            db.session.commit()
+            logger.info(f"用户{user_id}删除笔记成功：笔记ID{note_id}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"API删除笔记数据库错误：{str(e)}")
+            return error_response(500,"数据库错误")
+        
         return success_response()
 
     @app.route('/api/notes/<int:note_id>', methods=['PUT'])
@@ -179,7 +222,15 @@ def register_routes(app):
             return error_response(400,"标题和内容不能为空")
         note.title = title
         note.content = content
-        db.session.commit()
+        
+        try:
+            db.session.commit()
+            logger.info(f"用户{user_id}编辑笔记成功：笔记ID{note.id}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"API编辑笔记数据库错误：{str(e)}")
+            return error_response(500,"数据库错误")
+        
         return success_response(data=note.to_dict())
 
     @app.route('/about')

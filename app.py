@@ -4,6 +4,7 @@ from models import db
 from config import *
 from routes import register_routes
 from logger import init_logger
+from exceptions import register_global_exceptions
 
 # 新增：初始化日志（第一行执行，保证全程日志可用）
 logger = init_logger()
@@ -23,6 +24,9 @@ jwt = JWTManager(app)
 
 # 注册路由
 register_routes(app)
+
+# 注册全局异常捕获（新增）
+register_global_exceptions(app)
 
 # 创建表 + 自动创建 root
 with app.app_context():

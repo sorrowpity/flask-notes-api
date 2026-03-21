@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误{% endblock %}
+
+{% block content %}
+<div style="text-align:center; padding:40px;">
+    <h1>500 - 服务器内部错误</h1>
+    <p>程序出现异常，已自动记录日志，管理员会尽快处理</p>
+    <a href="/"><button class="btn btn-primary">返回首页</button></a>
+</div>
+{% endblock %}
