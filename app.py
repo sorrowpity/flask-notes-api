@@ -3,7 +3,10 @@ from flask_jwt_extended import JWTManager
 from models import db
 from config import *
 from routes import register_routes
+from logger import init_logger
 
+# 新增：初始化日志（第一行执行，保证全程日志可用）
+logger = init_logger()
 app = Flask(__name__)
 
 # 加载配置

@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Note, User
 from utils import login_required, get_current_user
 from passlib.context import CryptContext
+from logger import logger
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -98,12 +99,15 @@ def register_routes(app):
         username = data.get("username","").strip()
         password = data.get("password","").strip()
         if not username or not password:
+            logger.error(f"用户注册失败：用户名/密码为空，请求数据：{data}")  # 新增错误日志
             return error_response(400,"用户名和密码不能为空")
         if User.query.filter_by(username=username).first():
+            logger.error(f"用户注册失败：用户名{username}已存在")  # 新增错误日志
             return error_response(400,"用户名已存在")
         user = User(username=username, password=pwd_context.hash(password))
         db.session.add(user)
         db.session.commit()
+        logger.info(f"用户注册成功：用户名{username}")  # 新增信息日志
         return success_response(message="注册成功")
 
     @app.route("/api/login", methods=["POST"])
@@ -113,9 +117,11 @@ def register_routes(app):
         password = data.get("password","").strip()
         user = User.query.filter_by(username=username).first()
         if not user or not pwd_context.verify(password, user.password):
+            logger.error(f"用户登录失败：用户名{username}，密码错误/用户不存在")  # 新增错误日志
             return error_response(400,"用户名或密码错误")
         session["user_id"] = user.id
         from flask_jwt_extended import create_access_token
+        logger.info(f"用户登录成功：用户名{username}，用户ID{user.id}")  # 新增信息日志
         return success_response(data={"token":create_access_token(identity=str(user.id))}, message="登录成功")
 
     @app.route('/api/notes', methods=['GET'])
@@ -133,10 +139,12 @@ def register_routes(app):
         title = data.get('title','').strip()
         content = data.get('content','').strip()
         if not title or not content:
+            logger.error(f"用户{user_id}添加笔记失败：标题/内容为空")  # 新增错误日志
             return error_response(400,"标题和内容不能为空")
         note = Note(title=title, content=content, user_id=user_id)
         db.session.add(note)
         db.session.commit()
+        logger.info(f"用户{user_id}添加笔记成功：笔记ID{note.id}，标题{title}")  # 新增信息日志
         return success_response(data=note.to_dict()), 201
 
     @app.route('/api/notes/<int:note_id>', methods=['DELETE'])
@@ -145,9 +153,11 @@ def register_routes(app):
         user_id = int(get_jwt_identity())
         note = Note.query.filter_by(id=note_id, user_id=user_id).first()
         if not note:
+            logger.error(f"用户{user_id}删除笔记失败：笔记ID{note_id}不存在")  # 新增错误日志
             return error_response(404,"笔记不存在")
         db.session.delete(note)
         db.session.commit()
+        logger.info(f"用户{user_id}删除笔记成功：笔记ID{note_id}")  # 新增信息日志
         return success_response()
 
     @app.route('/api/notes/<int:note_id>', methods=['PUT'])
@@ -173,4 +183,5 @@ def register_routes(app):
 
     @app.errorhandler(404)
     def page_not_found(e):
+        logger.warning(f"404错误：访问不存在的路径，请求路径{request.path}，请求方法{request.method}")  # 新增警告日志
         return render_template('404.html'), 404
