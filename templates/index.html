@@ -1,20 +1,32 @@
+<!-- index.html -->
 {% extends "base.html" %}
 
-{% block title %}笔记列表 - 我的学习笔记{% endblock %}
-
-<!-- 重写侧边栏（覆盖默认内容） -->
-{% block sidebar %}
-<h4>我的笔记统计</h4>
-<p>总笔记数：{{ notes|length }}</p>  <!-- notes|length 是模板过滤器，统计列表长度 -->
-<p>当前用户: {{ username }}</p>
-{% endblock %}
+{% block title %}首页 - 我的学习笔记{% endblock %}
 
 {% block content %}
-<h2>我的学习笔记</h2>
+<h2>欢迎使用学习笔记管理系统</h2>
+
+{% if not session.user_id %}
+<div class="form-group">
+    <h3>登录</h3>
+    <form id="loginForm">
+        <label for="username">用户名:</label>
+        <input type="text" id="username" name="username" required>
+        <label for="password">密码:</label>
+        <input type="password" id="password" name="password" required>
+        <button type="submit" class="btn btn-primary">登录</button>
+    </form>
+</div>
+{% else %}
+<p>当前用户: {{ username }}</p>
+<a href="/logout">退出登录</a>
+{% endif %}
+
 {% if notes %}
+<div class="container">
+    <h2>我的学习笔记</h2>
     {% for note in notes %}
     <div class="note-item">
-
         <h3>{{ note.title }}</h3>
         <p>{{ note.content[:100] }}{% if note.content|length > 100 %}...{% endif %}</p>
         <div class="meta">
@@ -24,14 +36,90 @@
         </div>
         <div>
             <a href="/edit/{{ note.id }}"><button class="btn btn-primary">编辑</button></a>
-            <!-- <a href="/delete/{{ note.id }}" onclick="return confirm('确定删除这条笔记吗？')"><button class="btn btn-danger">删除</button></a> -->
-             <form action="/delete/{{ note.id }}" method="post" style="display: inline;">
+            <form action="/delete/{{ note.id }}" method="post" style="display: inline;">
                 <button type="submit" class="btn btn-danger" onclick="return confirm('确定删除吗？')">删除</button>
             </form>
+            <button class="btn btn-success ai-summary-btn" data-note-id="{{ note.id }}">
+                AI 总结
+            </button>
         </div>
     </div>
     {% endfor %}
+</div>
 {% else %}
-    <p>暂无笔记，<a href="/add">点击新增</a>你的第一条笔记吧！</p>
+<p>暂无笔记，<a href="/add">点击新增</a>你的第一条笔记吧！</p>
 {% endif %}
+{% endblock %}
+
+{% block script %}
+<script>
+// 等待页面完全加载
+window.onload = function() {
+    console.log("✅ 页面加载完成，JS 已启动");
+
+    // 1. 登录表单
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username, password: password })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.code === 200) {
+                    sessionStorage.setItem('jwtToken', data.data.token);
+                    window.location.href = '/';
+                } else {
+                    alert('登录失败：' + data.message);
+                }
+            })
+            .catch(err => alert('登录错误：' + err));
+        });
+    }
+
+    // 2. AI 总结按钮（强制绑定，保证一定能触发）
+    function bindAiButtons() {
+        console.log("✅ 开始绑定 AI 总结按钮");
+        const buttons = document.querySelectorAll('.ai-summary-btn');
+        console.log("找到按钮数量：", buttons.length);
+
+        buttons.forEach(btn => {
+            // 先移除旧事件，防止重复绑定
+            btn.removeEventListener('click', aiClickHandler);
+            btn.addEventListener('click', aiClickHandler);
+        });
+    }
+
+    // AI 点击逻辑
+    async function aiClickHandler() {
+        const noteId = this.dataset.noteId;
+        const oldText = this.innerText;
+        this.innerText = "总结中...";
+        this.disabled = true;
+
+        try {
+            const res = await fetch(`/api/ai/summarize/${noteId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            alert("✅ AI 总结结果：\n\n" + data.data.summary);
+        } catch (e) {
+            alert("网络异常，请重试");
+        } finally {
+            this.innerText = oldText;
+            this.disabled = false;
+        }
+    }
+
+    // 强制绑定按钮
+    bindAiButtons();
+};
+</script>
 {% endblock %}

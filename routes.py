@@ -1,3 +1,4 @@
+# routes.py - 定义所有页面和API路由
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -156,7 +157,11 @@ def register_routes(app):
         session["user_id"] = user.id
         from flask_jwt_extended import create_access_token
         logger.info(f"用户登录成功：用户名{username}，用户ID{user.id}")  # 新增信息日志
-        return success_response(data={"token":create_access_token(identity=str(user.id))}, message="登录成功")
+
+        # 创建JWT令牌并返回给前端
+        token = create_access_token(identity=str(user.id))
+        return success_response(data={"token": token}, message="登录成功")
+
 
     @app.route('/api/notes', methods=['GET'])
     @jwt_required()
@@ -241,3 +246,22 @@ def register_routes(app):
     def page_not_found(e):
         logger.warning(f"404错误：访问不存在的路径，请求路径{request.path}，请求方法{request.method}")  # 新增警告日志
         return render_template('404.html'), 404
+    
+    # ===================== AI 总结接口 =====================
+    @app.route('/api/ai/summarize/<int:note_id>', methods=['POST'])
+    def ai_summarize_note(note_id):
+        check = login_required()
+        if check: return check
+        user = get_current_user()
+
+        note = Note.query.filter_by(id=note_id, user_id=user.id).first()
+        if not note:
+            return error_response(404, "笔记不存在")
+
+        try:
+            from ai_client import ai_summarize_enterprise  # 这里对应上
+            summary = ai_summarize_enterprise(note.content)
+            return success_response(data={"summary": summary})
+        except Exception as e:
+            logger.error(f"AI 总结失败：{str(e)}")
+            return error_response(500, "AI 服务异常")

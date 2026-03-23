@@ -1,0 +1,30 @@
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# 环境密钥 → 最重要！
+.env
+.env.*
+secrets.json
+
+# 数据库
+instance/
+*.db
+*.sqlite
+*.sql
+
+# 日志
+logs/
+screenshots/
+
+# 其他
+test.py

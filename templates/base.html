@@ -1,3 +1,5 @@
+<!-- base.html -->
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -91,6 +93,8 @@
             cursor: pointer;
         }
 
+        .btn-success { background: #2ecc71; color: white; margin-left:6px; }
+
         .btn-primary {
             background: #3498db;
             color: white;
@@ -178,5 +182,8 @@
     <footer>
         © 2026 我的Flask学习项目 | 杭电计科学习笔记
     </footer>
+
+
+    {% block script %}{% endblock %}
 </body>
 </html>
